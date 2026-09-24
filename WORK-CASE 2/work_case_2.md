@@ -104,7 +104,7 @@ sudo apt install xfce4 xfce4-goodies -y
 ```bash
 fastfetch
 ```
-![fastfetch](ВСТАВИТИ_ШЛЯХ)
+![fastfetch](/WORK-CASE%202/images/photo_2026-09-24_18-17-08.jpg)
 
 ## 4. Порівняння Xfce з GNOME
 
