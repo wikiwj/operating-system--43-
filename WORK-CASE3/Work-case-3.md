@@ -114,6 +114,193 @@ sudo rm /etc/machine-id && sudo systemd-machine-id-setup
 | **Internal Network** (внутрішня мережа) | Повністю ізольована мережа лише між ВМ з однаковою назвою внутрішньої мережі. Хост у ній не бере участі. Використовується для безпечних тестових стендів. | так | ні | ні | ні |
 
 
+# Олексій Єршов:
+## Завдання 3. Розгортання мережі між робочою ОС та її клоном
+
+Для цього завдання використовуємо дві віртуальні машини: оригінальну `WorkOS` (Work-case 2) та її клон `WorkOS-clone` (з завдання 1, ім'я хоста `clone-os`). Щоб обидві ВМ мали і вихід в Інтернет, і зв'язок між собою, кожній ВМ додаємо по два мережеві адаптери:
+
+- **Адаптер 1 - NAT** - для виходу в Інтернет;
+- **Адаптер 2 - Внутрішня мережа (Internal Network)** з назвою `intnet` - для зв'язку між двома ВМ.
+
+### 3.1. Налаштування адаптерів у VirtualBox
+
+1. Вимикаємо обидві ВМ (змінювати адаптери можна тільки на вимкненій машині).
+2. У VirtualBox Менеджері обираємо ВМ → **Налаштування** → **Мережа**.
+3. На вкладці **Адаптер 1** залишаємо **Тип підключення:** *NAT*.
+4. На вкладці **Адаптер 2** ставимо галочку **Увімкнути мережевий адаптер**, **Тип підключення:** *Внутрішня мережа*, **Ім'я:** `intnet`.
+5. Те саме робимо для `WorkOS-clone` (ім'я мережі `intnet` має бути однакове, інакше машини не побачать одна одну). Запускаємо обидві ВМ.
+
+### 3.2. Базові команди для налаштування мережі
+
+Спочатку дивимось, які інтерфейси є в системі:
+
+```bash
+ip a
+```
+
+Бачимо `lo` (loopback), `enp0s3` (адаптер 1, NAT, адресу отримав автоматично по DHCP, `10.0.2.15`) та `enp0s8` (адаптер 2, поки без адреси).
+
+Основні команди, які використовували:
+
+| Команда | Що виконує |
+|---|---|
+| `ip a` (`ip addr`) | показує інтерфейси та їхні IP-адреси |
+| `ip link` | показує стан інтерфейсів (UP/DOWN) та MAC-адреси |
+| `ip route` | показує таблицю маршрутизації (шлюз за замовчуванням) |
+| `hostname -I` | виводить усі IP-адреси цієї машини |
+| `nmcli device status` | показує стан мережевих пристроїв у NetworkManager |
+| `nmcli con add ...` | створює нове мережеве підключення з потрібними параметрами |
+| `nmcli con up <ім'я>` | вмикає підключення |
+| `resolvectl status` | показує DNS-сервери, які використовує система |
+| `ping <адреса>` | перевіряє, чи доступний інший вузол мережі |
+
+Інтерфейс `enp0s8` на кожній ВМ налаштовуємо вручну (статична адреса), бо DHCP-сервера у внутрішній мережі немає.
+
+На `WorkOS`:
+
+```bash
+sudo nmcli con add type ethernet ifname enp0s8 con-name intnet ipv4.method manual ipv4.addresses 192.168.100.1/24
+sudo nmcli con up intnet
+```
+
+На `WorkOS-clone`:
+
+```bash
+sudo nmcli con add type ethernet ifname enp0s8 con-name intnet ipv4.method manual ipv4.addresses 192.168.100.2/24
+sudo nmcli con up intnet
+```
+
+Пояснення параметрів:
+
+| Параметр | Значення |
+|---|---|
+| `type ethernet` | тип підключення - дротовий Ethernet |
+| `ifname enp0s8` | до якого інтерфейсу прив'язуємо підключення |
+| `con-name intnet` | назва підключення (довільна) |
+| `ipv4.method manual` | адреса задається вручну, а не через DHCP |
+| `ipv4.addresses 192.168.100.1/24` | IP-адреса та маска (`/24` = `255.255.255.0`) |
+
+Перевіряємо, що адреса з'явилась: `ip a show enp0s8`. Далі перевіряємо зв'язок між машинами:
+
+```bash
+# з WorkOS
+ping -c 4 192.168.100.2
+# з WorkOS-clone
+ping -c 4 192.168.100.1
+```
+
+Якщо пакети проходять і втрат 0% - внутрішня мережа працює.
+
+> Цей самий результат можна отримати і без NetworkManager, командою `sudo ip addr add 192.168.100.1/24 dev enp0s8` та `sudo ip link set enp0s8 up`, але після перезавантаження налаштування зникнуть, тому ми використали `nmcli`.
+
+### 3.3. Вихід в Інтернет
+
+Інтернет на обох ВМ іде через адаптер 1 (NAT). Перевіряємо:
+
+```bash
+ping -c 4 8.8.8.8
+ping -c 4 google.com
+```
+
+Перший `ping` перевіряє, що є доступ до Інтернету за IP, другий - що працює ще й DNS (розпізнавання імен). Потім на кожній ВМ відкриваємо браузер (Firefox), заходимо на `youtube.com` та вмикаємо будь-яке відео. Відео відтворюється на обох ВМ, отже вихід в Інтернет є.
+
+### 3.4. Обмін повідомленнями між ОС по локальній мережі
+
+Для обміну повідомленнями використовуємо утиліту **netcat** (`nc`). Вона відкриває TCP-з'єднання між двома машинами, і все, що вводимо в одному терміналі, з'являється в іншому. Якщо її немає, встановлюємо: `sudo apt install netcat-openbsd`.
+
+1. На `WorkOS` запускаємо «сервер», який слухає порт 5000:
+
+```bash
+nc -l 5000
+```
+
+2. На `WorkOS-clone` підключаємось до нього за IP-адресою:
+
+```bash
+nc 192.168.100.1 5000
+```
+
+3. Пишемо текст у терміналі клона й натискаємо Enter - повідомлення з'являється на `WorkOS`. Те саме працює в зворотний бік. Щоб завершити чат, натискаємо `Ctrl+C`.
+
+Пояснення: `-l` (listen) - режим очікування підключення, `5000` - номер порту (може бути будь-який вільний більше 1024).
+
+### 3.5. Спільна мережева папка (Samba)
+
+Спільну папку розгортаємо через **Samba** (протокол SMB). Сервером буде `WorkOS`, клієнтом - `WorkOS-clone`.
+
+**На `WorkOS` (сервер):**
+
+1. Встановлюємо Samba та створюємо теку:
+
+```bash
+sudo apt update
+sudo apt install samba -y
+sudo mkdir -p /srv/share
+sudo chown $USER:$USER /srv/share
+```
+
+2. Додаємо опис теки в кінець конфігу `/etc/samba/smb.conf`:
+
+```bash
+sudo nano /etc/samba/smb.conf
+```
+
+```ini
+[share]
+   path = /srv/share
+   browseable = yes
+   read only = no
+   valid users = user
+```
+
+(замість `user` - ім'я нашого користувача в системі).
+
+3. Задаємо пароль користувача для Samba (він окремий від системного) та перезапускаємо службу:
+
+```bash
+sudo smbpasswd -a $USER
+sudo systemctl restart smbd
+```
+
+4. Кладемо у спільну теку тестовий файл:
+
+```bash
+echo "hello from WorkOS" > /srv/share/test.txt
+```
+
+**На `WorkOS-clone` (клієнт):**
+
+1. Встановлюємо клієнт та підключаємо теку:
+
+```bash
+sudo apt install cifs-utils smbclient -y
+sudo mkdir -p /mnt/share
+sudo mount -t cifs //192.168.100.1/share /mnt/share -o username=user
+```
+
+Система запитає пароль - вводимо той, що створили через `smbpasswd`. Перевіряємо: `ls /mnt/share` - має бути видно `test.txt`.
+
+(Те саме можна зробити через файловий менеджер: **Інші розташування** → `smb://192.168.100.1/share`.)
+
+**Копіювання файлів:**
+
+На `WorkOS` копіюємо файл зі спільної теки в домашній каталог:
+
+```bash
+cp /srv/share/test.txt ~/
+```
+
+На `WorkOS-clone` копіюємо файл зі змонтованої теки на робочий стіл:
+
+```bash
+cp /mnt/share/test.txt ~/Desktop/
+```
+
+Файл з'явився в домашній теці `WorkOS` та на робочому столі `WorkOS-clone`, отже спільна мережева папка працює для обох ОС.
+
+> Якщо `ping` між ВМ не проходить або Samba не підключається, потрібно перевірити, що ім'я внутрішньої мережі однакове на обох ВМ, а також що фаєрвол не блокує порти: `sudo ufw status` (у нашому випадку він вимкнений).
+
+
 # Богдан Пальгуй:
 ## Завдання 4. Організація обміну інформацією між основною та віртуальними ОС
 
@@ -134,3 +321,15 @@ sudo rm /etc/machine-id && sudo systemd-machine-id-setup
 2. **Копіювання з основної ОС у віртуальну та навпаки:** Знаходимо наш аудіофайл у Windows та переносимо його у теку яку ми обрали при створенні. Файл з'явиться в папці на ВМ. Щоб перенести файли з ВМ на основну ОС, треба так само перенести файли в папку, тільки на ВМ, вони з'являться в спільній папці на основній ОС.
 
 ![Скріншот 8](screen/screen8.jpg)
+
+
+## Conclusion
+
+During Work-case 3, we practiced working with virtual machines in VirtualBox and completed all required network tasks.
+
+- **Virtual Machine Cloning and Export:** We created a full clone of the `WorkOS` virtual machine named `WorkOS-clone`, changed its hostname, and generated new MAC addresses along with a new `machine-id`. We also exported the virtual machine into an `.ova` file to test VM migration to other environments.
+- **Network Modes:** We explored the differences between NAT, Bridged Adapter, Host-only Adapter, and Internal Network, as well as how each mode handles traffic between virtual machines and the Internet.
+- **Network Configuration and File Sharing:** We configured two network adapters on both VMs (NAT for Internet access and an Internal Network named `intnet` for direct communication). We verified IP addressing and routing using `ip a`, `ip route`, and `ping`, tested web browsing via YouTube, set up terminal messaging with `netcat`, and configured a shared network folder using Samba.
+- **Host-Guest Communication:** We configured shared folders using VirtualBox Guest Additions, allowing us to transfer files between the host OS (Windows) and the guest Linux systems.
+
+As a result, we gained practical experience in virtual machine administration, network configuration, and setting up shared network resources.
