@@ -248,6 +248,6 @@ g++ --version                       # перевірка
 
 ### 3.3. Результат встановлення
 
-![Скріншот: перевірка встановлення VLC та Visual Studio Code](screenshots/wc4_install_result.png)
+![Скріншот: перевірка встановлення VLC та Visual Studio Code](scr/Снимок%20экрана%202026-10-16%20121835.png)
 
 > **Місце для скриншота:** вивід команд `vlc --version` та `code --version`.
