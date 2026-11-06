@@ -446,3 +446,275 @@ root
      Loaded: loaded (/usr/lib/systemd/system/ssh.service; enabled; preset: enabled)
      Active: active (running) since Fri 2026-11-06 12:17:02 EET; 2h 15min ago
 ```
+# Пальгуй Богдан
+### 4.2. Developers (zsh)
+
+```bash
+sudo su - dev_andriy
+```
+
+> При першому запуску zsh може запропонувати майстер `zsh-newuser-install`. Для демонстрації оберіть `q` (вихід без створення `.zshrc`) або `0` (створити порожній `.zshrc`).
+
+```zsh
+echo $SHELL
+echo $ZSH_VERSION
+whoami
+pwd
+date
+python3 --version
+git --version
+echo $PATH
+ls -d /usr/*/ | head -n 3
+```
+
+**Output (приклад):**
+
+```text
+/usr/bin/zsh
+5.9
+dev_andriy
+/home/dev_andriy
+Fri Nov  6 14:35:44 EET 2026
+Python 3.12.3
+git version 2.43.0
+/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+/usr/bin/
+/usr/games/
+/usr/include/
+```
+
+Особливості zsh у роботі (demo):
+
+```zsh
+# Рекурсивний globbing: знайти всі .conf файли в /etc/ssh
+ls /etc/ssh/**/*.conf
+
+# Масиви з індексом від 1 (у bash від 0)
+langs=(python c java)
+echo $langs[1]
+
+# Виправлення опечаток у каталогах: cd /u/l/b
+cd /u/l/b && pwd
+```
+
+**Output (приклад):**
+
+```text
+/etc/ssh/ssh_config.d/20-systemd-ssh-proxy.conf
+python
+/usr/local/bin
+```
+
+```zsh
+exit
+```
+
+### 4.3. Financiers (доступ заборонено)
+
+```bash
+sudo su - fin_olena
+```
+
+**Output (приклад):**
+
+```text
+This account is currently not available.
+```
+
+Перевіримо, що це саме `nologin`:
+
+```bash
+getent passwd fin_olena | cut -d: -f7
+sudo -u fin_taras whoami
+```
+
+**Output (приклад):**
+
+```text
+/usr/sbin/nologin
+fin_taras
+```
+
+> **Пояснення.** Інтерактивний вхід заборонено, а `sudo -u fin_taras whoami` спрацьовує, бо виконує одну конкретну команду без shell користувача (і лише від імені адміністратора). Фінансисти не зможуть відкрити термінал ні локально, ні через SSH. Якщо їм потрібен доступ до файлів, його надають через сервіси (Samba, SFTP із chroot тощо), а не через shell.
+
+Спроба входу через SSH теж буде відхилена (приклад):
+
+```bash
+ssh fin_olena@localhost
+```
+
+**Output (приклад):**
+
+```text
+This account is currently not available.
+Connection to localhost closed.
+```
+
+### 4.4. Founders (fish)
+
+```bash
+sudo su - fnd_viktor
+```
+
+```fish
+echo $SHELL
+echo $version
+whoami
+pwd
+date
+hostname
+uname -sr
+set -l greeting "Hello, founders!"
+echo $greeting
+for i in (seq 1 3)
+    echo "Report #$i"
+end
+exit
+```
+
+**Output (приклад):**
+
+```text
+/usr/bin/fish
+3.7.0
+fnd_viktor
+/home/fnd_viktor
+Fri Nov  6 14:41:03 EET 2026
+ubuntu-vm
+Linux 6.8.0-48-generic
+Hello, founders!
+Report #1
+Report #2
+Report #3
+```
+
+Особливості fish у роботі (demo):
+
+- під час набору команди fish показує сіру автопідказку з історії, яку приймають клавішею `→`;
+- неіснуюча команда підсвічується червоним ще до натискання Enter;
+- довідка по вбудованих командах: `help set`;
+- змінні задаються через `set`, а не `VAR=value`:
+
+```fish
+set -x EDITOR nano
+echo $EDITOR
+set -e EDITOR
+```
+
+**Output (приклад):**
+
+```text
+nano
+```
+
+> Скрипти, написані для bash (`#!/bin/bash`), у fish напряму не інтерпретуються. Їх потрібно запускати як `bash script.sh` або мати shebang на bash.
+
+### 4.5. Guests (доступ заборонено)
+
+```bash
+sudo su - gst_max
+```
+
+**Output (приклад):**
+
+```text
+This account is currently not available.
+```
+
+Перевірка всієї групи:
+
+```bash
+for u in gst_max gst_anna; do
+  echo "== $u =="
+  getent passwd "$u" | cut -d: -f7
+  sudo su - "$u"
+done
+```
+
+**Output (приклад):**
+
+```text
+== gst_max ==
+/usr/sbin/nologin
+This account is currently not available.
+== gst_anna ==
+/usr/sbin/nologin
+This account is currently not available.
+```
+
+### 4.6. Підсумкова таблиця демонстрації
+
+| Група | Shell | Вхід через `su -` | Приклади виконаних команд |
+|---|---|---|---|
+| Technical support | bash | дозволено | `whoami`, `id`, `uname -a`, `free -h`, `df -h`, `sudo systemctl` |
+| Developers | zsh | дозволено | `echo $ZSH_VERSION`, `git --version`, `ls **/*.conf` |
+| Financiers | nologin | заборонено | повідомлення "This account is currently not available." |
+| Founders | fish | дозволено | `echo $version`, `set`, цикл `for ... end` |
+| Guests | nologin | заборонено | повідомлення "This account is currently not available." |
+
+---
+
+## Очищення системи (Cleanup)
+
+Після завершення роботи тимчасових користувачів і групи можна видалити:
+
+```bash
+for u in ts_oleh ts_iryna dev_andriy dev_marta fin_olena fin_taras fnd_viktor fnd_sofiia gst_max gst_anna; do
+  sudo userdel -r "$u"
+done
+
+for g in tech_support developers financiers founders guests; do
+  sudo groupdel "$g"
+done
+```
+
+Перевірка:
+
+```bash
+getent passwd | grep -E "ts_|dev_|fin_|fnd_|gst_" || echo "Users removed"
+getent group | grep -E "tech_support|developers|financiers|founders|guests" || echo "Groups removed"
+```
+
+**Output (приклад):**
+
+```text
+Users removed
+Groups removed
+```
+
+> `userdel -r` видаляє також home directory та поштову скриньку. Якщо користувач ще має активні процеси, спершу завершіть їх: `sudo pkill -u <username>`.
+
+---
+
+## Висновки
+
+1. Командні інтерпретатори в Ubuntu встановлюються через `apt`, а перелік допустимих login shells зберігається у `/etc/shells`. Окрім стандартного **bash** було встановлено **zsh** (розширений tab completion, globbing, плагіни) та **fish** (autosuggestions і syntax highlighting "з коробки", але без повної POSIX-сумісності).
+2. Для керування користувачами й групами використовуються `groupadd`, `useradd`, `usermod`, `chpasswd`, `userdel`. Було створено 5 груп і 10 користувачів, по двоє в кожній групі, з окремими home directories.
+3. Default shell користувача зберігається в сьомому полі `/etc/passwd` і змінюється через `usermod -s` або `chsh`. Для технічної підтримки призначено bash, розробників zsh, керівництва fish.
+4. Заборона інтерактивного доступу для фінансистів і гостей реалізована через `/usr/sbin/nologin`. Це простий і надійний спосіб: обліковий запис існує й може володіти файлами та сервісами, але відкрити термінал не може.
+5. Демонстрація показала, що кожна група працює у своєму середовищі: різниться синтаксис змінних і циклів (bash/zsh проти fish), а також додаткові можливості shell.
+6. Практичний підхід: shell слід обирати за завданням (bash для скриптів і адміністрування, zsh для комфортної розробки, fish для інтерактивної роботи), а доступ користувачів без потреби в терміналі обмежувати на рівні login shell.
+
+---
+
+## Conclusions (English)
+
+1. Command interpreters (shells) on Ubuntu are installed with the `apt` package manager, and the list of allowed login shells is stored in `/etc/shells`. Besides the default **bash**, two additional shells were installed: **zsh** (advanced tab completion, powerful globbing, plugin support) and **fish** (built-in autosuggestions and syntax highlighting, but not fully POSIX-compatible).
+2. Users and groups are managed with `groupadd`, `useradd`, `usermod`, `chpasswd` and `userdel`. Five groups and ten users (two per group) were created, each with its own home directory.
+3. A user's default shell is stored in the seventh field of `/etc/passwd` and can be changed with `usermod -s` or `chsh`. Technical support got bash, developers got zsh, and founders got fish.
+4. Interactive access for financiers and guests was denied by setting the shell to `/usr/sbin/nologin`. The account still exists and can own files and services, but its owner cannot open a terminal session.
+5. The demonstration showed that each group works in its own environment: variable and loop syntax differs between bash/zsh and fish, as do the extra features of each shell.
+6. In practice, the shell should be chosen for the task (bash for scripting and administration, zsh for comfortable development, fish for interactive use), while users who do not need a terminal should be restricted at the login-shell level.
+
+---
+
+## Методика виконання (якщо щось не вдалося)
+
+Якщо частину завдань не вдалося виконати на реальній системі, послідовність дій така:
+
+1. `sudo apt update && sudo apt install -y zsh fish`, потім перевірка `cat /etc/shells`.
+2. `sudo groupadd <group>` для кожної з п'яти груп.
+3. `sudo useradd -m -g <group> -s <shell> <user>` для кожного з 10 користувачів, де `<shell>` дорівнює `/bin/bash`, `/usr/bin/zsh`, `/usr/bin/fish` або `/usr/sbin/nologin`.
+4. Перевірка: `getent passwd <user>` та `id <user>`.
+5. Демонстрація: `sudo su - <user>`, потім команди `whoami`, `pwd`, `date`, `uname -a`, `echo $SHELL`.
+6. Для заблокованих груп перевіряється відмова "This account is currently not available."
