@@ -122,14 +122,14 @@ mkdir -p ~/scripts ~/backups ~/cron_logs ~/test_data ~/Downloads
 echo "test file" > ~/test_data/file1.txt
 ```
 
-**`~/scripts/log.sh`** — записує повідомлення з міткою часу:
+**`~/scripts/log.sh`** - записує повідомлення з міткою часу:
 
 ```bash
 #!/bin/bash
 echo "$(date '+%Y-%m-%d %H:%M:%S') | $1" >> /home/user/cron_logs/tasks.log
 ```
 
-**`~/scripts/backup.sh`** — створює архів каталогу `test_data` (архівування та backup):
+**`~/scripts/backup.sh`** - створює архів каталогу `test_data` (архівування та backup):
 
 ```bash
 #!/bin/bash
@@ -137,7 +137,7 @@ tar -czf /home/user/backups/test_data_$(date +%F_%H%M).tar.gz /home/user/test_da
 echo "$(date '+%Y-%m-%d %H:%M:%S') | backup created" >> /home/user/cron_logs/tasks.log
 ```
 
-**`~/scripts/cleanup.sh`** — видаляє файли в `Downloads` старші за 30 днів та старі архіви (очищення каталогів):
+**`~/scripts/cleanup.sh`** - видаляє файли в `Downloads` старші за 30 днів та старі архіви (очищення каталогів):
 
 ```bash
 #!/bin/bash
@@ -172,7 +172,7 @@ crontab -e
 30 18 * * * /home/user/scripts/log.sh "evening task 18:30"
 ```
 
-Поля: `0 8` — хвилина 0, година 8; `30 18` — хвилина 30, година 18; решта `*` — кожного дня, місяця, дня тижня.
+Поля: `0 8` - хвилина 0, година 8; `30 18` - хвилина 30, година 18; решта `*` - кожного дня, місяця, дня тижня.
 
 ### 2.2. Одна й та сама задача двічі на день
 
@@ -194,7 +194,7 @@ crontab -e
 0 10 * * 6,0 /home/user/scripts/cleanup.sh
 ```
 
-`1-5` — понеділок–п'ятниця; `6,0` — субота та неділя; `8-18` — діапазон годин.
+`1-5` - понеділок–п'ятниця; `6,0` - субота та неділя; `8-18` - діапазон годин.
 
 ### 2.4. Раз на рік, місяць, день, годину та при вмиканні
 
