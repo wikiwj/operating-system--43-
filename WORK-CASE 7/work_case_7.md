@@ -109,3 +109,126 @@ sudo systemctl status cron
 | **fcron** | поєднує можливості cron і anacron, підтримує умови та виконання пропущених завдань; потребує окремого встановлення й заміщує cron |
 
 ---
+# Пальгуй Богдан
+
+## Частина 2. Планування завдань через Cron
+
+### 2.0. Підготовка
+
+Створюємо каталоги, тестові файли та три скрипти.
+
+```bash
+mkdir -p ~/scripts ~/backups ~/cron_logs ~/test_data ~/Downloads
+echo "test file" > ~/test_data/file1.txt
+```
+
+**`~/scripts/log.sh`** — записує повідомлення з міткою часу:
+
+```bash
+#!/bin/bash
+echo "$(date '+%Y-%m-%d %H:%M:%S') | $1" >> /home/user/cron_logs/tasks.log
+```
+
+**`~/scripts/backup.sh`** — створює архів каталогу `test_data` (архівування та backup):
+
+```bash
+#!/bin/bash
+tar -czf /home/user/backups/test_data_$(date +%F_%H%M).tar.gz /home/user/test_data 2>/dev/null
+echo "$(date '+%Y-%m-%d %H:%M:%S') | backup created" >> /home/user/cron_logs/tasks.log
+```
+
+**`~/scripts/cleanup.sh`** — видаляє файли в `Downloads` старші за 30 днів та старі архіви (очищення каталогів):
+
+```bash
+#!/bin/bash
+find /home/user/Downloads -type f -mtime +30 -delete
+find /home/user/backups -type f -name "*.tar.gz" -mtime +7 -delete
+echo "$(date '+%Y-%m-%d %H:%M:%S') | cleanup done" >> /home/user/cron_logs/tasks.log
+```
+
+Робимо їх виконуваними та перевіряємо вручну:
+
+```bash
+chmod +x ~/scripts/*.sh
+~/scripts/backup.sh && cat ~/cron_logs/tasks.log
+```
+
+```
+2026-11-12 10:05:41 | backup created
+```
+
+Відкриваємо редактор розкладу:
+
+```bash
+crontab -e
+```
+
+### 2.1. Завдання в чітко визначений час
+
+```cron
+# Щодня о 08:00
+0 8 * * * /home/user/scripts/log.sh "morning task 08:00"
+# Щодня о 18:30
+30 18 * * * /home/user/scripts/log.sh "evening task 18:30"
+```
+
+Поля: `0 8` — хвилина 0, година 8; `30 18` — хвилина 30, година 18; решта `*` — кожного дня, місяця, дня тижня.
+
+### 2.2. Одна й та сама задача двічі на день
+
+```cron
+# Backup о 09:00 та 21:00
+0 9,21 * * * /home/user/scripts/backup.sh
+```
+
+Кома в полі години створює перелік значень (9 і 21).
+
+### 2.3. Тільки в будні / тільки у вихідні, у проміжку 8–18 годин
+
+```cron
+# Щогодини з 08:00 до 18:00, лише у будні (пн–пт)
+0 8-18 * * 1-5 /home/user/scripts/log.sh "weekday working hours"
+# Кожні 30 хвилин з 08:00 до 17:30, лише у будні
+*/30 8-17 * * 1-5 /home/user/scripts/log.sh "weekday every 30 min"
+# Лише у вихідні (сб, нд) о 10:00
+0 10 * * 6,0 /home/user/scripts/cleanup.sh
+```
+
+`1-5` — понеділок–п'ятниця; `6,0` — субота та неділя; `8-18` — діапазон годин.
+
+### 2.4. Раз на рік, місяць, день, годину та при вмиканні
+
+```cron
+# Раз на рік (1 січня о 00:00)
+@yearly   /home/user/scripts/log.sh "yearly task"
+# Раз на місяць (1 числа о 00:00)
+@monthly  /home/user/scripts/backup.sh
+# Раз на день (щодня о 00:00)
+@daily    /home/user/scripts/cleanup.sh
+# Щогодини (на початку години)
+@hourly   /home/user/scripts/log.sh "hourly task"
+# При вмиканні / перезавантаженні
+@reboot   /home/user/scripts/log.sh "system started"
+```
+
+Те саме в повній формі: `@yearly` = `0 0 1 1 *`, `@monthly` = `0 0 1 * *`, `@daily` = `0 0 * * *`, `@hourly` = `0 * * * *`.
+
+### 2.5. Перевірка роботи
+
+```bash
+crontab -l                      # переглянути поточний розклад
+sudo systemctl status cron      # служба має бути active (running)
+grep CRON /var/log/syslog | tail -5
+cat ~/cron_logs/tasks.log
+```
+
+Приклад виводу:
+
+```
+Nov 12 18:30:01 ubuntu CRON[2214]: (user) CMD (/home/user/scripts/log.sh "evening task 18:30")
+2026-11-12 18:30:01 | evening task 18:30
+```
+
+Для швидкої перевірки тимчасово ставимо `* * * * *` (щохвилини), чекаємо запису в `tasks.log`, після чого повертаємо потрібний розклад.
+
+---
