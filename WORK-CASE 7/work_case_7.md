@@ -232,3 +232,139 @@ Nov 12 18:30:01 ubuntu CRON[2214]: (user) CMD (/home/user/scripts/log.sh "evenin
 Для швидкої перевірки тимчасово ставимо `* * * * *` (щохвилини), чекаємо запису в `tasks.log`, після чого повертаємо потрібний розклад.
 
 ---
+# Єршов Олексій
+
+## Частина 3. Альтернативний планувальник - systemd timers
+
+**Вибір.** Як альтернативу cron використано **systemd timers**: це сучасний планувальник, що входить до складу Ubuntu, не конфліктує з cron, підтримує всі необхідні типи розкладів, має журнал і виконання пропущених запусків. Перевірка наявності:
+
+```bash
+systemctl --version | head -1
+systemctl list-timers --all | head
+```
+
+Окремого встановлення він не вимагає (на відміну від fcron, який замінює cron). Якщо потрібно, можна додатково встановити `anacron` / `at`: `sudo apt install anacron at`.
+
+### 3.1. Структура
+
+Кожне завдання складається з двох файлів:
+
+* `name.service` - **що** виконати;
+* `name.timer` - **коли** виконати.
+
+Розміщуємо їх у каталозі користувача `~/.config/systemd/user/` і керуємо через `systemctl --user`.
+
+```bash
+mkdir -p ~/.config/systemd/user
+```
+
+**`~/.config/systemd/user/backup.service`:**
+
+```ini
+[Unit]
+Description=Backup of test_data
+
+[Service]
+Type=oneshot
+ExecStart=/home/user/scripts/backup.sh
+```
+
+**`~/.config/systemd/user/backup.timer`** (двічі на день, 09:00 та 21:00):
+
+```ini
+[Unit]
+Description=Run backup twice a day
+
+[Timer]
+OnCalendar=*-*-* 09,21:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+Активація:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now backup.timer
+systemctl --user list-timers
+```
+
+```
+NEXT                         LEFT      LAST PASSED UNIT          ACTIVATES
+Thu 2026-11-12 21:00:00 EET  10h left  -    -      backup.timer  backup.service
+```
+
+### 3.2. Відповідність завдань із частини 2 (параметр `OnCalendar`)
+
+Кожен із наведених розкладів оформлюється як окремий `.timer` з відповідним `.service` (за зразком вище), змінюється лише рядок у секції `[Timer]`:
+
+| Завдання | Cron | systemd timer |
+|---|---|---|
+| Щодня о 08:00 | `0 8 * * *` | `OnCalendar=*-*-* 08:00:00` |
+| Щодня о 18:30 | `30 18 * * *` | `OnCalendar=*-*-* 18:30:00` |
+| Двічі на день (09:00 і 21:00) | `0 9,21 * * *` | `OnCalendar=*-*-* 09,21:00:00` |
+| Щогодини у будні з 8 до 18 | `0 8-18 * * 1-5` | `OnCalendar=Mon..Fri *-*-* 08..18:00:00` |
+| Тільки у вихідні о 10:00 | `0 10 * * 6,0` | `OnCalendar=Sat,Sun *-*-* 10:00:00` |
+| Раз на рік | `@yearly` | `OnCalendar=yearly` |
+| Раз на місяць | `@monthly` | `OnCalendar=monthly` |
+| Раз на день | `@daily` | `OnCalendar=daily` |
+| Щогодини | `@hourly` | `OnCalendar=hourly` |
+| При вмиканні | `@reboot` | `OnBootSec=1min` (запуск через хвилину після старту) |
+
+Приклад таймера «при вмиканні»:
+
+```ini
+[Timer]
+OnBootSec=1min
+Unit=backup.service
+```
+
+### 3.3. Перевірка виразів календаря та журнал
+
+Синтаксис `OnCalendar` можна перевірити до запуску:
+
+```bash
+systemd-analyze calendar "Mon..Fri *-*-* 08..18:00:00"
+```
+
+```
+  Original form: Mon..Fri *-*-* 08..18:00:00
+Normalized form: Mon..Fri *-*-* 08..18:00:00
+    Next elapse: Fri 2026-11-13 08:00:00 EET
+```
+
+Журнал виконання:
+
+```bash
+journalctl --user -u backup.service -n 5
+systemctl --user list-timers --all
+```
+
+Щоб користувацькі таймери працювали і без активного входу в систему (наприклад, після перезавантаження), вмикаємо:
+
+```bash
+sudo loginctl enable-linger user
+```
+
+### 3.4. Порівняння з cron
+
+| Критерій | cron | systemd timers |
+|---|---|---|
+| Конфігурація | один рядок у crontab | два файли (`.service` + `.timer`) |
+| Пропущені запуски | не виконуються | виконуються при `Persistent=true` |
+| Журнал | syslog | `journalctl`, окремий для кожної служби |
+| Залежності | немає | є (`After=`, `Requires=`) |
+| Точність / випадкова затримка | до хвилини | є `AccuracySec`, `RandomizedDelaySec` |
+| Простота | простіший для коротких задач | гнучкіший для складних |
+
+---
+
+## Conclusions
+
+During this work we studied how task schedulers work and compared Windows Task Scheduler with Linux tools. Windows offers a convenient graphical interface and many built-in conditions, while Linux relies on text-based configuration, which is lighter and easier to automate. We learned the structure of the crontab format (five time fields plus a command), the main `crontab` options and the special strings `@reboot`, `@hourly`, `@daily`, `@monthly` and `@yearly`.
+
+In the practical part we created scripts for logging, backup and cleanup and scheduled them in cron: at a fixed time, twice a day, on weekdays during working hours (8–18), on weekends only, and with yearly, monthly, daily, hourly and at-boot periodicity. As an alternative scheduler we used systemd timers and showed that every cron schedule can be expressed with `OnCalendar` or `OnBootSec`, with extra advantages such as `Persistent=true` for missed runs and logging through `journalctl`.
+
+The main practical lessons: always use absolute paths in cron jobs, redirect output to a log file, check the result in logs and with `systemd-analyze calendar`, and choose the scheduler according to the task: cron for simple periodic jobs, anacron or systemd timers for machines that are not always powered on, `at` for one-time jobs.
