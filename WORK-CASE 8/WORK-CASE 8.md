@@ -90,3 +90,91 @@ set realname = "User Name"
 ```
 
 Основні клавіші: `Enter` - відкрити лист, `m` - новий лист, `r` - відповісти, `d` - видалити, `q` - назад/вихід. Швидка відправка з командного рядка: `echo "Текст" | mail -s "Тема" user@example.com` (пакет `mailutils`).
+
+# Пальгуй Богдан:
+
+### 1.4. Музика в терміналі
+
+Програми: **cmus** (повноцінний TUI-плеєр), **mpg123** (прості MP3), **MOC** (`mocp`), **mpd + ncmpcpp** (серверний підхід).
+
+```bash
+sudo apt install cmus
+cmus
+```
+
+У cmus: `:add ~/Music` - додати каталог, `5` - вкладка Library (бібліотека), `Enter` - відтворити, `c` - пауза, `b` / `z` - наступний / попередній трек, `+` / `-` - гучність, `q` - вихід. Швидкий варіант для одного файлу: `mpg123 song.mp3`.
+
+### 1.5. Торренти в терміналі
+
+Клієнти: **rtorrent** (ncurses-інтерфейс), **transmission-cli**, **aria2**.
+
+```bash
+sudo apt install rtorrent
+rtorrent file.torrent
+```
+
+Клавіші rtorrent: `Ctrl+S` - старт, `Ctrl+D` - зупинка (двічі - видалення), `Ctrl+Q` - вихід. Альтернативи:
+
+```bash
+sudo apt install transmission-cli
+transmission-cli file.torrent
+sudo apt install aria2
+aria2c "magnet:?xt=urn:btih:..."
+```
+
+### 1.6. Планування в календарі та нагадування
+
+Програми: **calcurse** (календар + список завдань + нагадування), **remind**, а також системні `cal`, `at`.
+
+```bash
+sudo apt install calcurse
+calcurse
+```
+
+У calcurse: `a` - додати подію (appointment), `t` - додати завдання (todo), `Tab` - перемикання між панелями, `s` - зберегти, `q` - вихід. Нагадування: `calcurse --notify` / параметр `notification-daemon` в `~/.config/calcurse/conf`.
+
+Альтернатива **remind**: файл `~/.reminders` із рядком
+
+```
+REM 25 Nov 2026 AT 10:00 +30 MSG Здача лабораторної роботи
+```
+
+і команда `remind ~/.reminders`. Просте одноразове нагадування: `echo "notify-send 'Нагадування' 'Пора на пару'" | at 10:00`.
+
+### 1.7. Перегляд зображень у терміналі
+
+Програми: **chafa**, **timg**, **catimg**, **viu** (малюють зображення блоками Unicode чи ASCII), **fim** (перегляд у framebuffer прямо з консолі без X11).
+
+```bash
+sudo apt install chafa
+chafa picture.png
+sudo apt install fim
+fim picture.jpg
+```
+
+`fim` у консолі (TTY) показує зображення повноцінно; у графічному терміналі краще працюють `chafa` та `timg`.
+
+---
+
+## 2. Класичні інструменти адміністратора
+
+### 2.1. Текстові редактори (введення, редагування, видалення тексту)
+
+| Редактор | Особливості | Основні клавіші |
+|---|---|---|
+| **nano** | найпростіший, підказки внизу екрана | `Ctrl+O` зберегти, `Ctrl+X` вихід, `Ctrl+K` вирізати рядок, `Ctrl+U` вставити, `Ctrl+W` пошук |
+| **vim** | дуже потужний, режими (normal/insert/command) | `i` режим вставки, `Esc` назад, `dd` видалити рядок, `x` видалити символ, `:wq` зберегти і вийти, `:q!` вийти без збереження, `/слово` пошук |
+| **micro** | сучасний, зрозумілі гарячі клавіші, як у GUI | `Ctrl+S` зберегти, `Ctrl+Q` вийти, `Ctrl+C/V` копіювати/вставити |
+| **emacs -nw** | розширюваний, багатофункціональний | `Ctrl+X Ctrl+S` зберегти, `Ctrl+X Ctrl+C` вийти |
+| **ed / sed** | рядкові редактори для автоматизації | `sed -i 's/old/new/g' file` |
+
+Установлення та демонстрація (**nano**):
+
+```bash
+sudo apt install nano
+nano --version
+nano test.txt          # ввести текст, відредагувати, видалити рядок Ctrl+K, зберегти Ctrl+O, вийти Ctrl+X
+cat test.txt
+```
+
+Для порівняння встановлюється `vim`: `sudo apt install vim`, запуск `vim test.txt`.
