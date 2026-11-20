@@ -178,3 +178,99 @@ cat test.txt
 ```
 
 Для порівняння встановлюється `vim`: `sudo apt install vim`, запуск `vim test.txt`.
+
+# Єршов Олексій
+
+### 2.2. Моніторинг процесів та ресурсів системи
+
+Це аналог «Диспетчера завдань» (Task Manager) у Windows або «Системного монітора» в GNOME.
+
+| Програма | Призначення |
+|---|---|
+| `top` | вбудований монітор процесів, завжди доступний |
+| **htop** | кольоровий інтерактивний аналог `top`, зручне сортування і завершення процесів |
+| **btop** | сучасний красивий монітор із графіками CPU, RAM, диска й мережі |
+| `atop` | історія навантаження, облік ресурсів |
+| `glances` | зведений огляд системи (Python), у тому числі через веб |
+| `iotop` | навантаження на диск за процесами |
+| `free -h`, `df -h`, `vmstat`, `uptime` | швидка перевірка пам'яті, дисків, загальне навантаження |
+| `ps aux`, `pgrep`, `kill`, `pkill` | перегляд та керування процесами одноразово |
+
+Установлення та запуск (**htop**):
+
+```bash
+sudo apt install htop
+htop
+```
+
+Клавіші htop: `F1` - довідка, `F3` - пошук, `F4` - фільтр, `F5` - дерево процесів, `F6` - сортування (за CPU, MEM, PID), `F9` - завершити процес (`kill`), `F10` - вихід. У верхній частині відображаються завантаження ядер процесора, використання RAM і swap, а також load average.
+
+---
+
+## 3. «Пасхалки» (easter eggs)
+
+### 3.1. Паровоз у терміналі - `sl`
+
+Програма `sl` (від «Steam Locomotive») - жартівливий «покарання» за помилку в команді `ls`: показує локомотив із вагоном.
+
+```bash
+sudo apt install sl
+sl
+```
+
+Корисні параметри: `sl -a` - локомотив «у біді» (люди кличуть на допомогу), `sl -l` - менший варіант, `sl -F` - локомотив «летить» угору, `sl -e` - дозволяє перервати `Ctrl+C`.
+
+### 3.2. «Зоряні війни» (Star Wars) - ASCII-фільм
+
+Класичний спосіб - подивитися першу частину в ASCII-графіці по протоколу Telnet:
+
+```bash
+sudo apt install telnet
+telnet towel.blinkenlights.nl
+```
+
+Завершення - `Ctrl+]`, потім `quit`. Якщо сервер недоступний (його підтримка не гарантована) або Telnet заблоковано, можна скористатися запасним способом: `nc towel.blinkenlights.nl 23` (пакет `netcat`). Методика виконання завдання: з'єднання зі сторінкою за адресою з портом 23, прийом ASCII-кадрів і їх відображення терміналом із затримкою.
+
+### 3.3. Діалог із коровою - `cowsay`
+
+```bash
+sudo apt install cowsay
+cowsay "Hello, Linux!"
+cowthink "Hmm..."
+cowsay -f tux "I love Linux"
+cowsay -l                 # список доступних «персонажів»
+```
+
+Параметр `-f` змінює «персонажа» (`dragon`, `tux`, `stegosaurus`, `sheep` тощо), параметри `-b`, `-d`, `-g` змінюють вираз «очей» корови.
+
+### 3.4. Власні інтерактиви та жарти
+
+```bash
+sudo apt install fortune-mod lolcat figlet cmatrix nyancat asciiquarium bsdgames
+```
+
+| Команда | Що робить |
+|---|---|
+| `fortune` | виводить випадковий афоризм |
+| `fortune \| cowsay \| lolcat` | корова каже афоризм райдужними кольорами (конвеєр із трьох команд) |
+| `figlet "Linux"` | великий напис із символів (ASCII art) |
+| `cmatrix` | «цифровий дощ» у стилі фільму «Матриця» (вихід - `q`) |
+| `nyancat` | райдужний кіт у космосі (вихід - `Ctrl+C`) |
+| `asciiquarium` | анімований акваріум із рибками |
+| `curl wttr.in/Kyiv` | погода у вигляді ASCII-графіки |
+| `curl parrot.live` | танцюючий папуга |
+| `telnet mapscii.me` | інтерактивна карта світу в терміналі |
+| `bsdgames`: `worm`, `snake`, `robots`, `hangman`, `arithmetic` | класичні консольні ігри, що запускаються як окремі команди |
+| `nethack`, `ninvaders` | консольна RPG та клон Space Invaders |
+
+> Деякі пасхалки залежать від дистрибутива, доступності пакетів у репозиторіях та сторонніх серверів, тому на інших системах результат може відрізнятися.
+
+---
+
+## Висновки / Conclusions
+
+In this work-case we discovered that the absence of a graphical shell does not limit an Ubuntu Linux user: every common GUI task has a reliable text-based equivalent. We used or described Midnight Commander and ranger for file management, lynx and w3m for browsing the web, neomutt for e-mail, cmus for music, rtorrent and transmission-cli for torrents, calcurse and remind for calendars and reminders, and chafa and fim for viewing images directly in the terminal. All of these programs are installed with a single `apt install` command and consume very little memory, which makes them ideal for headless servers and low-resource machines.
+
+We also compared the main text editors (nano, vim, micro, emacs) and resource monitors (top, htop, btop, atop, glances). For beginners, nano and htop are the most convenient: nano shows hints for all shortcuts at the bottom of the screen, while htop offers an interactive process list with sorting and the ability to terminate processes with the F9 key, replacing the Task Manager of a graphical desktop. Vim, in turn, remains the most powerful editor available on almost every server.
+
+Finally, the easter eggs (`sl`, `cowsay`, `fortune`, `cmatrix`, `nyancat` and the ASCII Star Wars movie) showed that the terminal can also be entertaining, and they demonstrated a very important Linux concept: the pipe (`|`), which allows several simple programs to be combined into one command, for example `fortune | cowsay | lolcat`. As a result, we became more confident in using the command line, the package manager and TUI applications, which is an essential skill for a future system administrator or software developer.
