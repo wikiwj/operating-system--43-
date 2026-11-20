@@ -267,7 +267,7 @@ sudo apt install fortune-mod lolcat figlet cmatrix nyancat asciiquarium bsdgames
 
 ---
 
-## Висновки / Conclusions
+## Conclusions
 
 In this work-case we discovered that the absence of a graphical shell does not limit an Ubuntu Linux user: every common GUI task has a reliable text-based equivalent. We used or described Midnight Commander and ranger for file management, lynx and w3m for browsing the web, neomutt for e-mail, cmus for music, rtorrent and transmission-cli for torrents, calcurse and remind for calendars and reminders, and chafa and fim for viewing images directly in the terminal. All of these programs are installed with a single `apt install` command and consume very little memory, which makes them ideal for headless servers and low-resource machines.
 
